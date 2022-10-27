@@ -1,0 +1,14 @@
+## Name: TimerBars
+## Version: 0.2
+## Interface: 100000
+## Notes: Bars with timers, almost anyways. 
+## SavedVariables: TimerBarsAccount
+
+Listview.lua
+Listview.xml
+
+Dropdown.lua
+Dropdown.xml
+
+TimerBars.lua
+TimerBars.xml

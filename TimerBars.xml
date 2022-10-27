@@ -1,0 +1,245 @@
+
+
+<Ui>
+
+    <Frame name="TimerBarsAbilityListviewTemplate" mixin="TimerBarsAbilityListviewMixin" enableMouse="true" virtual="true">
+        <Layers>
+            <Layer level="BACKGROUND">
+
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture parentKey="highlightLeft" atlas="CovenantSanctum-Renown-Arrow-Depressed">
+                    <Anchors>
+                        <Anchor point="LEFT" x="0" y="0"/>
+                    </Anchors>
+                </Texture>
+                <Texture parentKey="highlightRight" atlas="CovenantSanctum-Renown-Arrow-Depressed">
+                    <Anchors>
+                        <Anchor point="RIGHT" x="0" y="0"/>
+                    </Anchors>
+                </Texture>
+                <Texture parentKey="highlightCenter">
+                    <Color r="0" g="0" b="0" a="0.15"/> 
+                    <Anchors>
+                        <Anchor point="LEFT" relativeKey="$parent.highlightLeft" relativePoint="RIGHT" x="0" y="0"/>
+                        <Anchor point="RIGHT" relativeKey="$parent.highlightRight" relativePoint="LEFT" x="0" y="0"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+                <FontString parentKey="label" inherits="GameFontNormal">
+
+                </FontString>
+            </Layer>
+        </Layers>
+    </Frame>
+
+    <Frame name="TimerBarsIconTemplate" mixin="TimerBarsIconMixin" virtual="true">
+        <Layers>
+            <Layer level="BACKGROUND">
+                
+            </Layer>
+            <Layer level="ARTWORK">
+                <Texture parentKey="icon" atlas="auctionhouse-itemicon-border-white">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="0" y="0"/>
+                        <Anchor point="BOTTOMRIGHT" x="0" y="0"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+
+            </Layer>
+            <Layer level="HIGHLIGHT">
+
+            </Layer>
+        </Layers>
+    </Frame>
+
+    <Frame name="TimerBarsUI" mixin="TimerBarsMixin" parent="UIParent" frameStrata="HIGH" enableMouse="true" movable="true" resizable="true">
+
+        <Size x="300" y="40"/>
+
+        <HitRectInsets left="0" right="0" top="0" bottom="0"/>
+
+        <Anchors>
+            <Anchor point="CENTER" x="0" y="0"/>
+        </Anchors>
+
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture atlas="communitiesfinder-card"/>
+            </Layer>
+            <Layer level="HIGHLIGHT">
+                <Texture atlas="communitiesfinder_card_highlight"/>
+            </Layer>
+        </Layers>
+
+        <Frames>
+
+            <Frame parentKey="profiles" parentArray="flyoutMenus" hidden="true">
+                <Size x="300" y="300"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" x="0" y="0"/>
+                </Anchors>
+                <Animations>
+                    <AnimationGroup parentKey="show" setToFinalAlpha="true">
+                        <Alpha duration="0.2" fromAlpha="0" toAlpha="1"/>
+                        <Scale duration="0.2" fromScaleX="1" fromScaleY="1" toScaleX="300" toScaleY="300">
+                            <Origin point="TOPLEFT" x="0" y="0"/>
+                        </Scale>
+                    </AnimationGroup>
+                    <AnimationGroup parentKey="fade" setToFinalAlpha="true">
+                        <Alpha duration="0.66" fromAlpha="1" toAlpha="0"/>
+                    </AnimationGroup>
+                </Animations>
+                <Layers>
+                    <Layer level="BACKGROUND">
+                        <Texture atlas="auctionhouse-background-buy-commodities" alpha="0.9"/>
+                    </Layer>
+                </Layers>
+
+                <Frames>
+                    <Frame parentKey="view" setAllPoints="true">
+                        <Layers>
+                            <Layer level="OVERLAY">
+                                <FontString parentKey="profileDropdownHeader" inherits="GameFontNormal" text="Select profile">
+                                    <Anchors>
+                                        <Anchor point="TOP" relativePoint="TOP" x="0" y="-16"/>
+                                    </Anchors>
+                                </FontString>
+                                <FontString parentKey="specDropdownHeader" inherits="GameFontNormal" text="Assign to specialization">
+                                    <Anchors>
+                                        <Anchor point="TOP" relativePoint="TOP" x="0" y="-76"/>
+                                    </Anchors>
+                                </FontString>
+                            </Layer>
+                        </Layers>
+                        <Frames>
+                            <Button parentkey="profileDropdown" inherits="TimerBarsDropDownTemplate">
+                                <Size x="200" y="38"/>
+                                <Anchors>
+                                    <Anchor point="TOP" relativeKey="$parent.profileDropdownHeader" relativePoint="BOTTOM" x="0" y="0"/>
+                                </Anchors>
+                            </Button>
+
+                            <Button parentkey="specDropdown" inherits="TimerBarsDropDownTemplate">
+                                <Size x="200" y="38"/>
+                                <Anchors>
+                                    <Anchor point="TOP" relativeKey="$parent.specDropdownHeader" relativePoint="BOTTOM" x="0" y="0"/>
+                                </Anchors>
+                            </Button>
+
+                            <Button parentKey="newProfile" inherits="UIPanelButtonTemplate" text="New profile">
+                                <Size x="120" y="22"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOM" x="-10" y="12"/>
+                                </Anchors>
+                            </Button>
+                            <Button parentKey="removeProfile" inherits="UIPanelButtonTemplate" text="Remove profile">
+                                <Size x="120" y="22"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOMLEFT" relativePoint="BOTTOM" x="10" y="12"/>
+                                </Anchors>
+                            </Button>
+
+                            <EditBox parentkey="profileNameInput" inherits="InputBoxTemplate" autoFocus="false">
+                                <Size x="200" y="38"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOM" x="0" y="40"/>
+                                </Anchors>
+                            </EditBox>
+
+                        </Frames>
+                    </Frame>
+                </Frames>
+            </Frame>
+
+            <Frame parentKey="abilities" parentArray="flyoutMenus" hidden="true">
+                <Size x="300" y="300"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" x="0" y="0"/>
+                </Anchors>
+                <Animations>
+                    <AnimationGroup parentKey="show" setToFinalAlpha="true">
+                        <Alpha duration="0.2" fromAlpha="0" toAlpha="1"/>
+                        <Scale duration="0.2" fromScaleX="1" fromScaleY="1" toScaleX="300" toScaleY="300">
+                            <Origin point="TOPLEFT" x="0" y="0"/>
+                        </Scale>
+                    </AnimationGroup>
+                    <AnimationGroup parentKey="fade" setToFinalAlpha="true">
+                        <Alpha duration="0.66" fromAlpha="1" toAlpha="0"/>
+                    </AnimationGroup>
+                </Animations>
+                <Layers>
+                    <Layer level="BACKGROUND">
+                        <Texture atlas="auctionhouse-background-buy-commodities" alpha="0.9"/>
+                    </Layer>
+                </Layers>
+                <Frames>
+                    <Frame parentKey="listview" inherits="TimerBarsListviewTemplate" setAllPoints="true" hidden="true">
+                        <Size x="300" y="300"/>
+                        <KeyValues>
+                            <KeyValue key="itemTemplate" value="TimerBarsAbilityListviewTemplate" type="string"/>
+                            <KeyValue key="elementHeight" value="22" type="number"/>
+                        </KeyValues>
+                    </Frame>
+                </Frames>
+            </Frame>
+
+            <Button name="$parentTab1" parentKey="tab1" parentArray="tabs" inherits="PanelTopTabButtonTemplate" id="1" hidden="true">
+                <Animations>
+                    <AnimationGroup parentKey="anim" setToFinalAlpha="true">
+                        <Alpha duration="0.66" fromAlpha="1" toAlpha="0"/>
+                    </AnimationGroup>
+                </Animations>
+                <Anchors>
+                    <Anchor point="BOTTOMLEFT" relativePoint="TOPLEFT" x="8" y="0"/>
+                </Anchors>
+            </Button>
+            <Button name="$parentTab2" parentKey="tab2" parentArray="tabs" inherits="PanelTopTabButtonTemplate" id="2" hidden="true">
+                <Animations>
+                    <AnimationGroup parentKey="anim" setToFinalAlpha="true">
+                        <Alpha duration="0.66" fromAlpha="1" toAlpha="0"/>
+                    </AnimationGroup>
+                </Animations>
+                <Anchors>
+                    <Anchor point="LEFT" relativeKey="$parent.tab1" relativePoint="RIGHT" x="0" y="0"/>
+                </Anchors>
+            </Button>
+            <Button name="$parentTab3" parentKey="tab3" parentArray="tabs" inherits="PanelTopTabButtonTemplate" id="3" hidden="true">
+                <Animations>
+                    <AnimationGroup parentKey="anim" setToFinalAlpha="true">
+                        <Alpha duration="0.66" fromAlpha="1" toAlpha="0"/>
+                    </AnimationGroup>
+                </Animations>
+                <Anchors>
+                    <Anchor point="LEFT" relativeKey="$parent.tab2" relativePoint="RIGHT" x="0" y="0"/>
+                </Anchors>
+            </Button>
+
+            <Button parentKey="resize" inherits="PanelResizeButtonTemplate">
+                <Size x="16" y="16"/>
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT" x="0" y="0"/>
+                </Anchors>
+            </Button>
+
+        </Frames>
+
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnEnter method="OnEnter"/>
+            <OnEvent method="OnEvent"/>
+            <OnUpdate method="OnUpdate"/>
+            <OnLeave method="OnLeave"/>
+            <OnDragStart>
+                self:StartMoving()
+            </OnDragStart>
+            <OnDragStop>
+                self:StopMovingOrSizing()
+            </OnDragStop>
+        </Scripts>
+    </Frame>
+
+</Ui>
