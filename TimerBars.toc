@@ -1,5 +1,5 @@
 ## Name: TimerBars
-## Version: 0.2
+## Version: 0.3
 ## Interface: 100000
 ## Notes: Bars with timers, almost anyways. 
 ## SavedVariables: TimerBarsAccount

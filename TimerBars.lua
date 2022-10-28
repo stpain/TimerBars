@@ -1,17 +1,27 @@
-
+--[[
+    TimerBars
+]]
 
 local addonName, TimerBars = ...;
 
+--locale texts for the UI
 local L = {
     PROFILES = "Profiles",
+    PROFILES_NEW = "New profile",
+    PROFILES_REMOVE = "Remove profile",
+    PROFILES_SELECT = "Select profile",
+    PROFILES_ASSIGN_SPEC = "Assign to specialization",
+    PROFILES_MANAGEMENT = "Profile management",
     ABILITIES = "Abilities",
     OPTIONS = "Options",
     LOCK_TOGGLE_ON = "Lock",
     LOCK_TOGGLE_OFF = "Unlock",
+    PROFILE_SPEC_INFO = "|cffffffffCharacter|r %s\n\n|cffffffffAbilities|r %d",
+    HELP_ABOUT = string.format("|cffffffffMoving/sizing|r - Right click the bar to toggle the locked state, the side arrows are yellow when unlocked.\n\n|cffffffffProfiles|r - To create a profile, enter a name and click 'New profile', you can then assign it to a class spec and select which abilities to track. You can remove the current profile by clicking 'Remove profile'.")
 }
 
-local selectedProfile;
 
+--lets get some callbacks on the go, love a good callback
 Mixin(TimerBars, CallbackRegistryMixin)
 TimerBars:GenerateCallbackEvents({
     "Database_OnInitialised",
@@ -24,7 +34,7 @@ CallbackRegistryMixin.OnLoad(TimerBars);
 
 
 
-
+--this thing can talk to the saved variables, clever!
 local Database = {}
 function Database:Init()
     
@@ -35,6 +45,7 @@ function Database:Init()
                 {
                     name = "default",
                     abilities = {},
+                    effects = {},
                     specID = false,
                 },
             },
@@ -60,7 +71,7 @@ end
 
 
 
-
+--the icons that move along the HUD bar
 TimerBarsIconMixin = {}
 function TimerBarsIconMixin:SetIcon(icon)
     self.icon:SetTexture(icon)
@@ -69,7 +80,7 @@ end
 
 
 
-
+--ability listview of course, shows some text, changes its colour etc
 TimerBarsAbilityListviewMixin = {}
 function TimerBarsAbilityListviewMixin:OnLoad()
 
@@ -118,22 +129,37 @@ end
 
 
 
-
+--ah-ha pay dirt, this is the jackpot of mixins (it does cool stuff)
 TimerBarsMixin = {}
 function TimerBarsMixin:OnLoad()
 
+    --check when blizz does soemthing
     self:RegisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
 
+    --set those locale texts
+    self.profiles.view.profileDropdownHeader:SetText(L.PROFILES_SELECT)
+    self.profiles.view.specDropdownHeader:SetText(L.PROFILES_ASSIGN_SPEC)
+    self.profiles.view.profileManagementHeader:SetText(L.PROFILES_MANAGEMENT)
+    self.profiles.view.newProfile:SetText(L.PROFILES_NEW)
+    self.profiles.view.removeProfile:SetText(L.PROFILES_REMOVE)
+
+    --lets have some variables, might use them later on
     self.timerIcons = {}
     self.timerIconsPool = CreateFramePool("FRAME", TimerBarsUI, "TimerBarsIconTemplate")
-
     self.numTabs = #self.tabs;
-
     self.spellCache = {}
     self.specInfo = {}
-
+    self.locked = true;
     self.isMouseOver = self:IsMouseOver(2, -2, -2, 2)
+
+    --spin the right arrow so its right
+    self.lockedArrowRight:SetRotation(3.14)
+    self.lockedArrowLeft:SetWidth(self:GetHeight() * 0.72)
+    self.lockedArrowRight:SetWidth(self:GetHeight() * 0.72)
+
+    self.options.view.helpAbout:SetText(L.HELP_ABOUT)
 
     TimerBars:RegisterCallback("Profile_OnChanged", self.Profile_OnChanged, self)
     TimerBars:RegisterCallback("Profile_OnActiveSpecChanged", self.Profile_OnActiveSpecChanged, self)
@@ -146,11 +172,21 @@ function TimerBarsMixin:OnLoad()
     end
 
     self:RegisterForDrag("LeftButton")
-    self.resize:Init(self, 100, 20)
+    self.resize:Init(self, 100, 20, 10000, 70)
 
     self:SetScript("OnMouseDown", function(_, button)
         if button == "RightButton" then
-            self:TabManager("toggle")
+            self.locked = not self.locked;
+
+            if self.locked then
+                self.lockedArrowLeft:SetAtlas("CovenantSanctum-Renown-Arrow-Disabled")
+                self.lockedArrowRight:SetAtlas("CovenantSanctum-Renown-Arrow-Disabled")
+                self.resize:Hide()
+            else
+                self.lockedArrowLeft:SetAtlas("CovenantSanctum-Renown-Arrow-Depressed")
+                self.lockedArrowRight:SetAtlas("CovenantSanctum-Renown-Arrow-Depressed")
+                self.resize:Show()
+            end
         end
     end)
 
@@ -174,21 +210,36 @@ function TimerBarsMixin:OnLoad()
         end)
     end
 
-    self.abilities.listview:SetScript("OnLeave", function()
-        self:CloseMenus()
-    end)
 
     self.profiles.show:SetScript("OnFinished", function()
         self.profiles:SetSize(300, 300)
         self.profiles.view:Show()
+    end)
+    self.profiles.view:SetScript("OnLeave", function()
+        self:CloseMenus()
     end)
 
     self.abilities.show:SetScript("OnFinished", function()
         self.abilities:SetSize(300, 300)
         self.abilities.listview:Show()
     end)
+    self.abilities.listview:SetScript("OnLeave", function()
+        self:CloseMenus()
+    end)
+
+    self.options.show:SetScript("OnFinished", function()
+        self.options:SetSize(300, 300)
+        self.options.view:Show()
+    end)
 
 end
+
+function TimerBarsMixin:OnDragStart()
+    if not self.locked then
+        self:StartMoving()
+    end
+end
+
 
 function TimerBarsMixin:Database_OnInitialised()
 
@@ -200,6 +251,7 @@ function TimerBarsMixin:Database_OnInitialised()
             Database:NewProfile({
                 name = profileName,
                 abilities = {},
+                effects = {},
                 specID = false,
                 id = time(),
                 character = self.character,
@@ -220,8 +272,9 @@ function TimerBarsMixin:Database_OnInitialised()
             if type(key) == "number" then
                 Database:RemoveProfile(key)
                 self.selectedProfile = nil;
+                self.profiles.view.profileDropdown:SetText("")
+                self:UpdateProfileDropdown()
             end
-            self:UpdateProfileDropdown()
         end
     end)
 
@@ -244,20 +297,20 @@ function TimerBarsMixin:CloseMenus()
 
     self.isMouseOver = false
 
-    if self:IsMouseOver(2, -2, -2, 2) then
-        self.isMouseOver = true;
-    end
-    for k, flyout in ipairs(self.flyoutMenus) do
-        if flyout:IsMouseOver(2, -2, -2, 2) then
+    C_Timer.After(1, function()
+        if self:IsMouseOver(2, -2, -2, 2) then
             self.isMouseOver = true;
         end
-    end
-    for i = 1, self.numTabs do
-        if self["tab"..i]:IsMouseOver(2, -2, -2, 2) then
-            self.isMouseOver = true;
+        for k, flyout in ipairs(self.flyoutMenus) do
+            if flyout:IsMouseOver(2, -2, -2, 2) then
+                self.isMouseOver = true;
+            end
         end
-    end
-    C_Timer.After(0.5, function()
+        for i = 1, self.numTabs do
+            if self["tab"..i]:IsMouseOver(2, -2, -2, 2) then
+                self.isMouseOver = true;
+            end
+        end
         if self.isMouseOver == false then
             self:TabManager("fade")
             self:FlyoutMenuManager("fade")
@@ -276,6 +329,7 @@ function TimerBarsMixin:FlyoutMenuManager(task, menuID)
 
     self.abilities.listview:Hide()
     self.profiles.view:Hide()
+    self.options.view:Hide()
 
     if task == "show" and self.flyoutMenus[menuID] then
         self.flyoutMenus[menuID].fade:Stop()
@@ -386,18 +440,41 @@ function TimerBarsMixin:OnEvent(event, ...)
         end
         self.character = string.format("%s.%s", realm, name)
 
-        local specID = GetSpecialization()
-        local id, name, description, icon, role, primaryStat = GetSpecializationInfo(specID)
+        local specIndex = GetSpecialization()
+        local specID, name, description, icon, role, primaryStat = GetSpecializationInfo(specIndex)
         for k, profile in ipairs(Database:GetProfiles()) do
-            if (profile.character == self.character) and (profile.specID == id) then
+            if (profile.character == self.character) and (profile.specID == specID) then
                 self:Profile_OnChanged(profile)
-                print(string.format("[%s] loaded %s profile", addonName, profile.name))
+            end
+        end
+    end
+
+    if event == "ACTIVE_TALENT_GROUP_CHANGED" then
+        -- C_Timer.After(1, function()
+        
+        -- end)
+        local specIndex = GetSpecialization()
+        local specID, name, description, icon, role, primaryStat = GetSpecializationInfo(specIndex)
+        if type(specID) == "number" then
+            for k, profile in ipairs(Database:GetProfiles()) do
+                if (profile.character == self.character) and (profile.specID == specID) then
+                    self:Profile_OnChanged(profile)
+                end
             end
         end
     end
 end
 
 function TimerBarsMixin:Profile_OnActiveSpecChanged(specID)
+
+    --remove current profile for spec
+    if type(specID) == "number" then
+        for k, profile in ipairs(Database:GetProfiles()) do
+            if (profile.character == self.character) and (profile.specID == specID) then
+                profile.specID = false;
+            end
+        end
+    end
 
     if self.selectedProfile then
         self.selectedProfile.specID = specID
@@ -406,7 +483,6 @@ function TimerBarsMixin:Profile_OnActiveSpecChanged(specID)
 end
 
 function TimerBarsMixin:Profile_OnChanged(profile)
-    print(string.format("[%s]", addonName), profile.name)
 
     self.selectedProfile = profile;
 
@@ -419,33 +495,75 @@ function TimerBarsMixin:Profile_OnChanged(profile)
         self.profiles.view.specDropdown:SetText("")
     end
 
+    local abilityCount = 0;
+    for k, v in pairs(profile.abilities) do
+        abilityCount = abilityCount + 1;
+    end
+    self.profiles.view.specInfo:SetText(L.PROFILE_SPEC_INFO:format(profile.character or "-", abilityCount or 0))
+
     local abilities = {}
     for tab = 1, GetNumSpellTabs() do
         local tabName, tabTexture, tabOffset, numEntries = GetSpellTabInfo(tab)
         for i=tabOffset + 1, tabOffset + numEntries do
-            local spellName, spellSubName, spellID = GetSpellBookItemName(i, BOOKTYPE_SPELL)
-            
-            local name, rank, icon = GetSpellInfo(spellID)
-            if spellID and name and icon then
-                self.spellCache[spellID] = {
-                    name = name,
-                    icon = icon,
-                }
-            end
 
-            table.insert(abilities, {
-                label = spellName,
-                spellID = spellID,
-                watching = function()
-                    return profile.abilities[spellID] and true or false;
-                end,
-                onMouseDown = function()
-                    profile.abilities[spellID] = not profile.abilities[spellID]
-                    if profile.abilities[spellID] == false then
-                        profile.abilities[spellID] = nil;
+            local spellType, id = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
+            if spellType == "FLYOUT" then
+                
+                local name, description, numSlots, isKnown = GetFlyoutInfo(id)
+                for slot = 1, numSlots do
+                    local _, spellID, _, spellName, _ = GetFlyoutSlotInfo(id, slot)
+
+                    local name, rank, icon = GetSpellInfo(spellID)
+                    if spellID and name and icon then
+                        self.spellCache[spellID] = {
+                            name = name,
+                            icon = icon,
+                        }
+
+                        table.insert(abilities, {
+                            label = spellName,
+                            spellID = spellID,
+                            watching = function()
+                                return profile.abilities[spellID] and true or false;
+                            end,
+                            onMouseDown = function()
+                                profile.abilities[spellID] = not profile.abilities[spellID]
+                                if profile.abilities[spellID] == false then
+                                    profile.abilities[spellID] = nil;
+                                end
+                            end
+                        })
                     end
+
                 end
-            })
+
+            else
+                local spellName, _, spellID = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+
+                local name, rank, icon = GetSpellInfo(spellID)
+                if spellID and name and icon then
+                    self.spellCache[spellID] = {
+                        name = name,
+                        icon = icon,
+                    }
+
+                    table.insert(abilities, {
+                        label = spellName,
+                        spellID = spellID,
+                        watching = function()
+                            return profile.abilities[spellID] and true or false;
+                        end,
+                        onMouseDown = function()
+                            profile.abilities[spellID] = not profile.abilities[spellID]
+                            if profile.abilities[spellID] == false then
+                                profile.abilities[spellID] = nil;
+                            end
+                        end
+                    })
+                end
+
+            end
+            
         end
     end
     self.abilities.listview.DataProvider:Flush()
@@ -454,11 +572,19 @@ end
 
 function TimerBarsMixin:OnUpdate()
 
+    self.lockedArrowLeft:SetWidth(self:GetHeight() * 0.72)
+    self.lockedArrowRight:SetWidth(self:GetHeight() * 0.72)
+
     if type(self.selectedProfile) == "table" then
+
+        for k, frame in pairs(self.timerIcons) do
+            frame:Hide()
+        end
         
         for spellID, _ in pairs(self.selectedProfile.abilities) do
             local start, duration, enabled, modRate = GetSpellCooldown(spellID)
-            if duration > 0 then
+
+            if duration > 1.4 then
                 local remaining = (start + duration) - GetTime()
 
                 if not self.timerIcons[spellID] then
@@ -472,12 +598,11 @@ function TimerBarsMixin:OnUpdate()
                     self.timerIcons[spellID] = f;
                 else
 
-                    --local pos = (remaining / duration) * self:GetWidth()
-                    --local bar = self:GetWidth() - self:GetHeight()
                     local offset = (self:GetWidth() / duration) * remaining;
                     local pos = self:GetWidth() - offset;
                     
                     local xy = self:GetHeight()
+                    self.timerIcons[spellID]:Show()
                     self.timerIcons[spellID]:SetSize(xy, xy)
                     self.timerIcons[spellID]:ClearAllPoints()
                     self.timerIcons[spellID]:SetPoint("LEFT", pos, 0)
