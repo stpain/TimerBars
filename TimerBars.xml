@@ -68,7 +68,7 @@
 
         <Layers>
             <Layer level="BACKGROUND">
-                <Texture atlas="communitiesfinder-card"/>
+                <Texture atlas="communitiesfinder-card" alpha="0.66"/>
             </Layer>
             <Layer level="HIGHLIGHT">
                 <Texture atlas="communitiesfinder_card_highlight"/>
@@ -132,16 +132,21 @@
                                         <Anchor point="TOP" relativePoint="TOP" x="0" y="-76"/>
                                     </Anchors>
                                 </FontString>
+                                <FontString parentKey="copyProfileDropdownHeader" inherits="GameFontNormal">
+                                    <Anchors>
+                                        <Anchor point="TOP" relativePoint="TOP" x="0" y="-176"/>
+                                    </Anchors>
+                                </FontString>
                                 <FontString parentKey="profileManagementHeader" inherits="GameFontNormal">
                                     <Anchors>
-                                        <Anchor point="TOP" relativePoint="TOP" x="0" y="-218"/>
+                                        <Anchor point="BOTTOM" relativePoint="BOTTOM" x="0" y="40"/>
                                     </Anchors>
                                 </FontString>
                                 <Texture atlas="CovenantSanctum-Renown-Title-Divider-Kyrian">
                                     <Size y="10"/>
                                     <Anchors>
-                                        <Anchor point="TOPLEFT" x="10" y="-200"/>
-                                        <Anchor point="TOPRIGHT" x="-10" y="-200"/>
+                                        <Anchor point="BOTTOMLEFT" x="10" y="56"/>
+                                        <Anchor point="BOTTOMRIGHT" x="-10" y="56"/>
                                     </Anchors>
                                 </Texture>
                             </Layer>
@@ -161,25 +166,39 @@
                                 </Anchors>
                             </Button>
 
-                            <Button parentKey="newProfile" inherits="UIPanelButtonTemplate">
-                                <Size x="120" y="22"/>
+                            <Button parentkey="copyProfileDropdown" inherits="TimerBarsDropDownTemplate">
+                                <Size x="200" y="38"/>
                                 <Anchors>
-                                    <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOM" x="-10" y="12"/>
+                                    <Anchor point="TOP" relativeKey="$parent.copyProfileDropdownHeader" relativePoint="BOTTOM" x="0" y="0"/>
                                 </Anchors>
                             </Button>
-                            <Button parentKey="removeProfile" inherits="UIPanelButtonTemplate">
-                                <Size x="120" y="22"/>
+
+                            <Button parentKey="removeProfile">
+                                <Size x="22" y="22"/>
                                 <Anchors>
-                                    <Anchor point="BOTTOMLEFT" relativePoint="BOTTOM" x="10" y="12"/>
+                                    <Anchor point="LEFT" relativeKey="$parent.profileDropdown" relativePoint="RIGHT" x="4" y="0"/>
                                 </Anchors>
+                                <NormalTexture atlas="128-RedButton-Exit"/>
+                                <PushedTexture atlas="128-RedButton-Exit-Pressed"/>
+                                <!-- <HighlightTexture atlas="128-RedButton-Exit-highlight"/> -->
                             </Button>
 
                             <EditBox parentkey="profileNameInput" inherits="InputBoxTemplate" autoFocus="false">
                                 <Size x="200" y="38"/>
                                 <Anchors>
-                                    <Anchor point="BOTTOM" x="0" y="34"/>
+                                    <Anchor point="BOTTOM" x="0" y="6"/>
                                 </Anchors>
                             </EditBox>
+
+                            <Button parentKey="newProfile" hidden="true" frameStrata="HIGH" frameLevel="6">
+                                <Size x="16" y="16"/>
+                                <Anchors>
+                                    <Anchor point="RIGHT" relativeKey="$parent.profileNameInput" relativePoint="RIGHT" x="-4" y="0"/>
+                                </Anchors>
+                                <NormalTexture atlas="communities-icon-addgroupplus"/>
+                                <PushedTexture atlas="communities-icon-addgroupplus"/>
+                                <HighlightTexture atlas="ClickCast-Highlight-Binding"/>
+                            </Button>
 
                         </Frames>
                     </Frame>
@@ -252,6 +271,14 @@
                                 </FontString>
                             </Layer>
                         </Layers>
+                        <Frames>
+                            <Button parentKey="resetSavedVars" inherits="UIPanelButtonTemplate">
+                                <Size x="200" y="22"/>
+                                <Anchors>
+                                    <Anchor point="BOTTOM" x="0" y="10"/>
+                                </Anchors>
+                            </Button>
+                        </Frames>
                     </Frame>
                 </Frames>
             </Frame>

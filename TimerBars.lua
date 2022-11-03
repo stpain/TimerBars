@@ -6,18 +6,26 @@ local addonName, TimerBars = ...;
 
 --locale texts for the UI
 local L = {
+    ADDON_LOADED = "[%s] loaded",
+    DEFAULT = "Default",
     PROFILES = "Profiles",
     PROFILES_NEW = "New profile",
     PROFILES_REMOVE = "Remove profile",
+    PROFILES_COPY = "Copy from",
+    PROFILES_COPY_PRINT = "[%s] copied abilitites and effects from [%s] %s to [%s] %s",
+    PROFILES_COPY_PRINT_FAILED = "[%s] unable to copy profiles, classes do not match.",
     PROFILES_SELECT = "Select profile",
     PROFILES_ASSIGN_SPEC = "Assign to specialization",
-    PROFILES_MANAGEMENT = "Profile management",
+    PROFILES_MANAGEMENT = "Create profile",
     ABILITIES = "Abilities",
     OPTIONS = "Options",
+    OPTIONS_RESET_SV = "Reset",
+    OPTIONS_RESET_SV_PRINT = string.format("[%s] has been reset", addonName),
     LOCK_TOGGLE_ON = "Lock",
     LOCK_TOGGLE_OFF = "Unlock",
+    PROFILE_SPEC_INFO_CLASS = "|cffffffffCharacter|r %s %s\n\n|cffffffffAbilities|r %d",
     PROFILE_SPEC_INFO = "|cffffffffCharacter|r %s\n\n|cffffffffAbilities|r %d",
-    HELP_ABOUT = string.format("|cffffffffMoving/sizing|r - Right click the bar to toggle the locked state, the side arrows are yellow when unlocked.\n\n|cffffffffProfiles|r - To create a profile, enter a name and click 'New profile', you can then assign it to a class spec and select which abilities to track. You can remove the current profile by clicking 'Remove profile'.")
+    HELP_ABOUT = string.format("|cffffffffMoving/sizing|r - Right click the bar to toggle the locked state, the side arrows are yellow when unlocked.\n\n|cffffffffProfiles|r - To create a profile, enter a name and click the green + sign, you can then assign it to a class spec and select which abilities to track. You can remove the current profile by clicking the red cross.")
 }
 
 
@@ -25,8 +33,9 @@ local L = {
 Mixin(TimerBars, CallbackRegistryMixin)
 TimerBars:GenerateCallbackEvents({
     "Database_OnInitialised",
+    "Database_CopyProfile",
 
-    "Profile_OnChanged",
+    "Profile_OnSelectionChanged",
     "Profile_OnActiveSpecChanged",
 
 })
@@ -41,14 +50,7 @@ function Database:Init()
     if not TimerBarsAccount then
         TimerBarsAccount = {
             minimapButton = {},
-            profiles = {
-                {
-                    name = "default",
-                    abilities = {},
-                    effects = {},
-                    specID = false,
-                },
-            },
+            profiles = {},
             config = {},
         }
     end
@@ -56,12 +58,32 @@ function Database:Init()
     TimerBars:TriggerEvent("Database_OnInitialised")
 end
 
+function Database:ResetAddon()
+    TimerBarsAccount = nil;
+    TimerBarsAccount = {
+        minimapButton = {},
+        profiles = {},
+        config = {},
+    }
+    TimerBars:TriggerEvent("Database_OnInitialised")
+end
+
 function Database:GetProfiles()
     return TimerBarsAccount.profiles;
 end
 
+function Database:GetNumProfiles()
+    return #TimerBarsAccount.profiles;
+end
+
 function Database:NewProfile(profile)
     table.insert(TimerBarsAccount.profiles, profile)
+end
+
+function Database:GetProfile(k)
+    if k <= #TimerBarsAccount.profiles then
+        return TimerBarsAccount.profiles[k]
+    end
 end
 
 function Database:RemoveProfile(key)
@@ -137,13 +159,20 @@ function TimerBarsMixin:OnLoad()
     self:RegisterEvent("ADDON_LOADED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED")
+    self:RegisterEvent("PLAYER_REGEN_DISABLED")
+    self:RegisterEvent("UNIT_SPELLCAST_START")
+
+
+    self.regenEnabled = nil;
 
     --set those locale texts
     self.profiles.view.profileDropdownHeader:SetText(L.PROFILES_SELECT)
     self.profiles.view.specDropdownHeader:SetText(L.PROFILES_ASSIGN_SPEC)
+    self.profiles.view.copyProfileDropdownHeader:SetText(L.PROFILES_COPY)
     self.profiles.view.profileManagementHeader:SetText(L.PROFILES_MANAGEMENT)
     self.profiles.view.newProfile:SetText(L.PROFILES_NEW)
-    self.profiles.view.removeProfile:SetText(L.PROFILES_REMOVE)
+    --self.profiles.view.removeProfile:SetText(L.PROFILES_REMOVE)
 
     --lets have some variables, might use them later on
     self.timerIcons = {}
@@ -160,10 +189,17 @@ function TimerBarsMixin:OnLoad()
     self.lockedArrowRight:SetWidth(self:GetHeight() * 0.72)
 
     self.options.view.helpAbout:SetText(L.HELP_ABOUT)
+    self.options.view.resetSavedVars:SetText(L.OPTIONS_RESET_SV)
 
-    TimerBars:RegisterCallback("Profile_OnChanged", self.Profile_OnChanged, self)
+    self.options.view.resetSavedVars:SetScript("OnClick", function()
+        Database:ResetAddon()
+        print(L.OPTIONS_RESET_SV_PRINT)
+    end)
+
+    TimerBars:RegisterCallback("Profile_OnSelectionChanged", self.Profile_OnSelectionChanged, self)
     TimerBars:RegisterCallback("Profile_OnActiveSpecChanged", self.Profile_OnActiveSpecChanged, self)
     TimerBars:RegisterCallback("Database_OnInitialised", self.Database_OnInitialised, self)
+    TimerBars:RegisterCallback("Database_CopyProfile", self.Database_CopyProfile, self)
 
     SLASH_TIMERBARS1 = '/timerbars'
     SLASH_TIMERBARS2 = '/tbars'
@@ -186,6 +222,7 @@ function TimerBarsMixin:OnLoad()
                 self.lockedArrowLeft:SetAtlas("CovenantSanctum-Renown-Arrow-Depressed")
                 self.lockedArrowRight:SetAtlas("CovenantSanctum-Renown-Arrow-Depressed")
                 self.resize:Show()
+                self:TabManager("show")
             end
         end
     end)
@@ -218,6 +255,9 @@ function TimerBarsMixin:OnLoad()
     self.profiles.view:SetScript("OnLeave", function()
         self:CloseMenus()
     end)
+    self.profiles.view.copyProfileDropdown.flyout:SetScript("OnLeave", function()
+        self:CloseMenus()
+    end)
 
     self.abilities.show:SetScript("OnFinished", function()
         self.abilities:SetSize(300, 300)
@@ -230,6 +270,14 @@ function TimerBarsMixin:OnLoad()
     self.options.show:SetScript("OnFinished", function()
         self.options:SetSize(300, 300)
         self.options.view:Show()
+    end)
+
+    self.profiles.view.profileNameInput:SetScript("OntextChanged", function(eb)
+        if #eb:GetText() > 0 then
+            self.profiles.view.newProfile:Show()
+        else
+            self.profiles.view.newProfile:Hide()
+        end
     end)
 
 end
@@ -255,6 +303,7 @@ function TimerBarsMixin:Database_OnInitialised()
                 specID = false,
                 id = time(),
                 character = self.character,
+                class = self.characterClass,
             })
             self.profiles.view.profileNameInput:SetText("")
             self:UpdateProfileDropdown()
@@ -280,17 +329,47 @@ function TimerBarsMixin:Database_OnInitialised()
 
 end
 
+function TimerBarsMixin:Database_CopyProfile(profile)
+    if type(self.selectedProfile) == "table" then
+        if profile.class and self.selectedProfile.class and (profile.class == self.selectedProfile.class) then
+            
+            for k, v in pairs(profile.abilities) do
+                self.selectedProfile.abilities[k] = v;
+            end
+            for k, v in pairs(profile.effects) do
+                self.selectedProfile.effects[k] = v;
+            end
+
+            self:Profile_OnSelectionChanged(self.selectedProfile)
+
+            print(L.PROFILES_COPY_PRINT:format(addonName, profile.character, profile.name, self.selectedProfile.character, self.selectedProfile.name))
+
+        else
+            print(L.PROFILES_COPY_PRINT_FAILED:format(addonName))
+        end
+    end
+end
+
 function TimerBarsMixin:UpdateProfileDropdown()
-    local profiles = {}
+    local selectProfileMenu, copyProfileMenu = {}, {}
+    self.profiles.view.profileDropdown:ClearMenu()
+    self.profiles.view.copyProfileDropdown:ClearMenu()
     for k, profile in ipairs(Database:GetProfiles()) do
-        table.insert(profiles, {
-            text = profile.name,
+        table.insert(selectProfileMenu, {
+            text = string.format("[%s] %s", profile.character or "-", profile.name or "-"),
             func = function()
-                TimerBars:TriggerEvent("Profile_OnChanged", profile)
+                TimerBars:TriggerEvent("Profile_OnSelectionChanged", profile)
+            end
+        })
+        table.insert(copyProfileMenu, {
+            text = string.format("[%s] %s", profile.character or "-", profile.name or "-"),
+            func = function()
+                TimerBars:TriggerEvent("Database_CopyProfile", profile)
             end
         })
     end
-    self.profiles.view.profileDropdown:SetMenu(profiles)
+    self.profiles.view.profileDropdown:SetMenu(selectProfileMenu)
+    self.profiles.view.copyProfileDropdown:SetMenu(copyProfileMenu)
 end
 
 function TimerBarsMixin:CloseMenus()
@@ -310,6 +389,9 @@ function TimerBarsMixin:CloseMenus()
             if self["tab"..i]:IsMouseOver(2, -2, -2, 2) then
                 self.isMouseOver = true;
             end
+        end
+        if self.profiles.view.copyProfileDropdown:IsMouseOver() then
+            self.isMouseOver = true;
         end
         if self.isMouseOver == false then
             self:TabManager("fade")
@@ -390,10 +472,20 @@ end
 
 function TimerBarsMixin:OnEnter()
 
-    self:TabManager("show")
+    if self.regenEnabled == true then
+        --self:SetAlpha(1.0)
+    end
+
+    if not self.locked then
+        self:TabManager("show")
+    end
 end
 
 function TimerBarsMixin:OnLeave()
+
+    if self.regenEnabled == true then
+        --self:SetAlpha(0.2)
+    end
 
     self:CloseMenus()
 
@@ -403,9 +495,18 @@ function TimerBarsMixin:OnEvent(event, ...)
 
     if event == "ADDON_LOADED" and (...) == addonName then
         Database:Init()
-        print(string.format("[%s] loaded", addonName))
+        print(L.ADDON_LOADED:format(addonName))
     end
 
+    if event == "PLAYER_REGEN_ENABLED" then
+        self.regenEnabled = true;
+        --self:SetAlpha(0.2)
+    end
+
+    if event == "PLAYER_REGEN_DISABLED" then
+        self.regenEnabled = false;
+        --self:SetAlpha(1.0)
+    end
 
     if event == "PLAYER_ENTERING_WORLD" then
         local specMenu = {
@@ -439,13 +540,49 @@ function TimerBarsMixin:OnEvent(event, ...)
             realm = GetNormalizedRealmName();
         end
         self.character = string.format("%s.%s", realm, name)
+        local _, class = UnitClass("player")
+        self.characterClass = class;
 
         local specIndex = GetSpecialization()
         local specID, name, description, icon, role, primaryStat = GetSpecializationInfo(specIndex)
+        local characterDefaultProfileExists = false;
         for k, profile in ipairs(Database:GetProfiles()) do
-            if (profile.character == self.character) and (profile.specID == specID) then
-                self:Profile_OnChanged(profile)
+
+            -- if (profile.character == self.character) and (profile.name == L.DEFAULT) then
+            --     characterDefaultProfileExists = true;
+            -- end
+
+            --no point in constantly making a default on each login/reload
+            if profile.character == self.character then
+                characterDefaultProfileExists = true;
             end
+
+            --adding this little updater
+            if not profile.effects then
+                profile.effects = {}
+            end
+            if not profile.class then
+                profile.class = self.characterClass;
+            end
+
+            --during loading, check for a profile that matches this character and spec and load it
+            if (profile.character == self.character) and (profile.specID == specID) then
+                self:Profile_OnSelectionChanged(profile)
+            end
+        end
+        if characterDefaultProfileExists == false then
+            Database:NewProfile({
+                character = self.character,
+                class = self.characterClass,
+                name = L.DEFAULT,
+                abilities = {},
+                effects = {},
+                specID = specID,
+                id = time(),
+            })
+            self:UpdateProfileDropdown()
+            local profileCount = Database:GetNumProfiles()
+            self:Profile_OnSelectionChanged(Database:GetProfile(profileCount))
         end
     end
 
@@ -458,7 +595,7 @@ function TimerBarsMixin:OnEvent(event, ...)
         if type(specID) == "number" then
             for k, profile in ipairs(Database:GetProfiles()) do
                 if (profile.character == self.character) and (profile.specID == specID) then
-                    self:Profile_OnChanged(profile)
+                    self:Profile_OnSelectionChanged(profile)
                 end
             end
         end
@@ -482,13 +619,13 @@ function TimerBarsMixin:Profile_OnActiveSpecChanged(specID)
 
 end
 
-function TimerBarsMixin:Profile_OnChanged(profile)
+function TimerBarsMixin:Profile_OnSelectionChanged(profile)
 
     self.selectedProfile = profile;
 
     self.spellCache = {}
 
-    self.profiles.view.profileDropdown:SetText(profile.name)
+    self.profiles.view.profileDropdown:SetText(string.format("[%s] %s", profile.character or "-", profile.name or "-"))
     if self.specInfo[profile.specID] then
         self.profiles.view.specDropdown:SetText(self.specInfo[profile.specID].name)
     else
@@ -499,7 +636,11 @@ function TimerBarsMixin:Profile_OnChanged(profile)
     for k, v in pairs(profile.abilities) do
         abilityCount = abilityCount + 1;
     end
-    self.profiles.view.specInfo:SetText(L.PROFILE_SPEC_INFO:format(profile.character or "-", abilityCount or 0))
+    if profile.class then
+        self.profiles.view.specInfo:SetText(L.PROFILE_SPEC_INFO_CLASS:format(profile.character or "-", CreateAtlasMarkup(string.format("GarrMission_ClassIcon-%s", profile.class)), abilityCount or 0))
+    else
+        self.profiles.view.specInfo:SetText(L.PROFILE_SPEC_INFO:format(profile.character or "-", abilityCount or 0))
+    end
 
     local abilities = {}
     for tab = 1, GetNumSpellTabs() do
@@ -511,7 +652,16 @@ function TimerBarsMixin:Profile_OnChanged(profile)
                 
                 local name, description, numSlots, isKnown = GetFlyoutInfo(id)
                 for slot = 1, numSlots do
-                    local _, spellID, _, spellName, _ = GetFlyoutSlotInfo(id, slot)
+                    local spellID, overrideSpellID, _, spellName, _ = GetFlyoutSlotInfo(id, slot)
+
+                    if overrideSpellID and (overrideSpellID ~= spellID) then
+                        spellID = overrideSpellID;
+                    end
+
+                    -- print(spellName)
+                    -- print("spellID", spellID)
+                    -- print("overrideSpellID", overrideSpellID)
+                    -- print("==========================")
 
                     local name, rank, icon = GetSpellInfo(spellID)
                     if spellID and name and icon then
@@ -582,37 +732,42 @@ function TimerBarsMixin:OnUpdate()
         end
         
         for spellID, _ in pairs(self.selectedProfile.abilities) do
-            local start, duration, enabled, modRate = GetSpellCooldown(spellID)
 
-            if duration > 1.4 then
-                local remaining = (start + duration) - GetTime()
+            if self.spellCache[spellID] then
 
-                if not self.timerIcons[spellID] then
-                    local f = self.timerIconsPool:Acquire()
-                    f:SetIcon(self.spellCache[spellID].icon)
-                    local xy = self:GetHeight()
-                    f:SetSize(xy, xy)
-                    f:SetPoint("LEFT", 0, 0)
-                    f:Show()
+                local start, duration, enabled, modRate = GetSpellCooldown(spellID)
 
-                    self.timerIcons[spellID] = f;
+                if duration > 1.4 then
+                    local remaining = (start + duration) - GetTime()
+
+                    if not self.timerIcons[spellID] then
+
+                        local f = self.timerIconsPool:Acquire()
+                        f:SetIcon(self.spellCache[spellID].icon)
+                        local xy = self:GetHeight()
+                        f:SetSize(xy, xy)
+                        f:SetPoint("LEFT", 0, 0)
+                        f:Show()
+
+                        self.timerIcons[spellID] = f;
+                    else
+
+                        local offset = (self:GetWidth() / duration) * remaining;
+                        local pos = self:GetWidth() - offset;
+                        
+                        local xy = self:GetHeight()
+                        self.timerIcons[spellID]:Show()
+                        self.timerIcons[spellID]:SetSize(xy, xy)
+                        self.timerIcons[spellID]:ClearAllPoints()
+                        self.timerIcons[spellID]:SetPoint("LEFT", pos, 0)
+                    end
+
                 else
-
-                    local offset = (self:GetWidth() / duration) * remaining;
-                    local pos = self:GetWidth() - offset;
-                    
-                    local xy = self:GetHeight()
-                    self.timerIcons[spellID]:Show()
-                    self.timerIcons[spellID]:SetSize(xy, xy)
-                    self.timerIcons[spellID]:ClearAllPoints()
-                    self.timerIcons[spellID]:SetPoint("LEFT", pos, 0)
-                end
-
-            else
-                if self.timerIcons[spellID] then
-                    self.timerIcons[spellID]:Hide()
-                    self.timerIconsPool:Release(self.timerIcons[spellID])
-                    self.timerIcons[spellID] = nil;
+                    if self.timerIcons[spellID] then
+                        self.timerIcons[spellID]:Hide()
+                        self.timerIconsPool:Release(self.timerIcons[spellID])
+                        self.timerIcons[spellID] = nil;
+                    end
                 end
             end
         end

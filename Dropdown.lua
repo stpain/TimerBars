@@ -21,6 +21,10 @@ function TimerBarsDropDownTemplateMixin:SetText(text)
     self.label.text:SetText(text)
 end
 
+function TimerBarsDropDownTemplateMixin:ClearMenu()
+    self.flyout.listview.DataProvider:Flush()
+end
+
 function TimerBarsDropDownTemplateMixin:SetMenu(t)
 
     if type(t) ~= "table" then

@@ -18,10 +18,10 @@
             </Layer>
             <Layer level="OVERLAY">
 
-                <FontString parentKey="text" inherits="GameFontNormal">
+                <FontString parentKey="text" inherits="GameFontNormal" justifyH="LEFT">
                     <Color r="1" g="1" b="1"/>
                     <Anchors>
-                        <Anchor point="LEFT" relativeKey="$parent.icon" relativePoint="RIGHT" x="0" y="0"/>
+                        <Anchor point="LEFT" relativeKey="$parent.icon" relativePoint="RIGHT" x="2" y="0"/>
                         <Anchor point="RIGHT" x="0" y="0"/>
                     </Anchors>
                 </FontString>
