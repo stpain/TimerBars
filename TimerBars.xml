@@ -8,27 +8,35 @@
 
             </Layer>
             <Layer level="HIGHLIGHT">
-                <Texture parentKey="highlightLeft" atlas="CovenantSanctum-Renown-Arrow-Depressed">
+                <!-- <Texture parentKey="highlightLeft" atlas="CovenantSanctum-Renown-Arrow-Depressed" hidden="true">
                     <Anchors>
                         <Anchor point="LEFT" x="0" y="0"/>
                     </Anchors>
                 </Texture>
-                <Texture parentKey="highlightRight" atlas="CovenantSanctum-Renown-Arrow-Depressed">
+                <Texture parentKey="highlightRight" atlas="CovenantSanctum-Renown-Arrow-Depressed" hidden="true">
                     <Anchors>
                         <Anchor point="RIGHT" x="0" y="0"/>
                     </Anchors>
-                </Texture>
+                </Texture> -->
                 <Texture parentKey="highlightCenter">
                     <Color r="0" g="0" b="0" a="0.15"/> 
                     <Anchors>
-                        <Anchor point="LEFT" relativeKey="$parent.highlightLeft" relativePoint="RIGHT" x="0" y="0"/>
-                        <Anchor point="RIGHT" relativeKey="$parent.highlightRight" relativePoint="LEFT" x="0" y="0"/>
+                        <Anchor point="TOPLEFT" x="0" y="-1"/>
+                        <Anchor point="BOTTOMRIGHT" x="0" y="1"/>
                     </Anchors>
                 </Texture>
             </Layer>
             <Layer level="OVERLAY">
+                <Texture parentKey="icon">
+                    <Anchors>
+                        <Anchor point="LEFT" x="0" y="0"/>
+                    </Anchors>
+                </Texture>
                 <FontString parentKey="label" inherits="GameFontNormal">
-
+                    <Anchors>
+                        <Anchor point="LEFT" relativeKey="$parent.icon" relativePoint="RIGHT" x="3" y="0"/>
+                        <Anchor point="RIGHT" x="-3" y="0"/>
+                    </Anchors>
                 </FontString>
             </Layer>
         </Layers>
@@ -152,21 +160,21 @@
                             </Layer>
                         </Layers>
                         <Frames>
-                            <Button parentkey="profileDropdown" inherits="TimerBarsDropDownTemplate">
+                            <Button parentkey="profileDropdown" inherits="TBDDropDownTemplate">
                                 <Size x="200" y="38"/>
                                 <Anchors>
                                     <Anchor point="TOP" relativeKey="$parent.profileDropdownHeader" relativePoint="BOTTOM" x="0" y="0"/>
                                 </Anchors>
                             </Button>
 
-                            <Button parentkey="specDropdown" inherits="TimerBarsDropDownTemplate">
+                            <Button parentkey="specDropdown" inherits="TBDDropDownTemplate">
                                 <Size x="200" y="38"/>
                                 <Anchors>
                                     <Anchor point="TOP" relativeKey="$parent.specDropdownHeader" relativePoint="BOTTOM" x="0" y="0"/>
                                 </Anchors>
                             </Button>
 
-                            <Button parentkey="copyProfileDropdown" inherits="TimerBarsDropDownTemplate">
+                            <Button parentkey="copyProfileDropdown" inherits="TBDDropDownTemplate">
                                 <Size x="200" y="38"/>
                                 <Anchors>
                                     <Anchor point="TOP" relativeKey="$parent.copyProfileDropdownHeader" relativePoint="BOTTOM" x="0" y="0"/>
@@ -227,11 +235,11 @@
                     </Layer>
                 </Layers>
                 <Frames>
-                    <Frame parentKey="listview" inherits="TimerBarsListviewTemplate" setAllPoints="true" hidden="true">
+                    <Frame parentKey="listview" inherits="TBDListviewTemplate" setAllPoints="true" hidden="true">
                         <Size x="300" y="300"/>
                         <KeyValues>
                             <KeyValue key="itemTemplate" value="TimerBarsAbilityListviewTemplate" type="string"/>
-                            <KeyValue key="elementHeight" value="22" type="number"/>
+                            <KeyValue key="elementHeight" value="26" type="number"/>
                         </KeyValues>
                     </Frame>
                 </Frames>

@@ -113,10 +113,12 @@ function TimerBarsAbilityListviewMixin:SetDataBinding(binding, height)
 
     self:SetHeight(height)
     self.label:SetText(binding.label)
-    self.highlightLeft:SetSize(26, height)
-    self.highlightRight:SetRotation(3.14)
-    self.highlightRight:SetSize(26, height)
-    self.highlightCenter:SetHeight(height)
+    self.icon:SetSize(height-1, height-1)
+    self.icon:SetTexture(binding.icon)
+    -- self.highlightLeft:SetSize(26, height)
+    -- self.highlightRight:SetRotation(3.14)
+    -- self.highlightRight:SetSize(26, height)
+    -- self.highlightCenter:SetHeight(height)
 
     self:SetScript("OnMouseDown", function()
         binding.onMouseDown()
@@ -625,7 +627,7 @@ function TimerBarsMixin:Profile_OnSelectionChanged(profile)
 
     self.spellCache = {}
 
-    self.profiles.view.profileDropdown:SetText(string.format("[%s] %s", profile.character or "-", profile.name or "-"))
+    self.profiles.view.profileDropdown:SetText(profile.name or "-")
     if self.specInfo[profile.specID] then
         self.profiles.view.specDropdown:SetText(self.specInfo[profile.specID].name)
     else
@@ -643,62 +645,76 @@ function TimerBarsMixin:Profile_OnSelectionChanged(profile)
     end
 
     local abilities = {}
-    for tab = 1, GetNumSpellTabs() do
-        local tabName, tabTexture, tabOffset, numEntries = GetSpellTabInfo(tab)
-        for i=tabOffset + 1, tabOffset + numEntries do
+    for i = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+        local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(i)
 
-            local spellType, id = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
-            if spellType == "FLYOUT" then
+        local offset, numSlots = skillLineInfo.itemIndexOffset, skillLineInfo.numSpellBookItems
+        for j = offset+1, offset+numSlots do
+
+            local spellBookItemInfo = C_SpellBook.GetSpellBookItemInfo(j, Enum.SpellBookSpellBank.Player)
+            local spellType, id = spellBookItemInfo.itemType, spellBookItemInfo.actionID
+    
+            if spellType == Enum.SpellBookItemType.Flyout then
                 
-                local name, description, numSlots, isKnown = GetFlyoutInfo(id)
-                for slot = 1, numSlots do
-                    local spellID, overrideSpellID, _, spellName, _ = GetFlyoutSlotInfo(id, slot)
+                -- local name, description, numSlots, isKnown = GetFlyoutInfo(id)
+                -- for slot = 1, numSlots do
+                --     local spellID, overrideSpellID, _, spellName, _ = GetFlyoutSlotInfo(id, slot)
 
-                    if overrideSpellID and (overrideSpellID ~= spellID) then
-                        spellID = overrideSpellID;
-                    end
+                --     if overrideSpellID and (overrideSpellID ~= spellID) then
+                --         spellID = overrideSpellID;
+                --     end
 
-                    -- print(spellName)
-                    -- print("spellID", spellID)
-                    -- print("overrideSpellID", overrideSpellID)
-                    -- print("==========================")
+                --     -- print(spellName)
+                --     -- print("spellID", spellID)
+                --     -- print("overrideSpellID", overrideSpellID)
+                --     -- print("==========================")
 
-                    local name, rank, icon = GetSpellInfo(spellID)
-                    if spellID and name and icon then
-                        self.spellCache[spellID] = {
-                            name = name,
-                            icon = icon,
-                        }
+                --     local name, rank, icon = C_SpellBook.GetSpellInfo(spellID)
+                --     if spellID and name and icon then
+                --         self.spellCache[spellID] = {
+                --             name = name,
+                --             icon = icon,
+                --         }
 
-                        table.insert(abilities, {
-                            label = spellName,
-                            spellID = spellID,
-                            watching = function()
-                                return profile.abilities[spellID] and true or false;
-                            end,
-                            onMouseDown = function()
-                                profile.abilities[spellID] = not profile.abilities[spellID]
-                                if profile.abilities[spellID] == false then
-                                    profile.abilities[spellID] = nil;
-                                end
-                            end
-                        })
-                    end
+                --         table.insert(abilities, {
+                --             label = spellName,
+                --             spellID = spellID,
+                --             watching = function()
+                --                 return profile.abilities[spellID] and true or false;
+                --             end,
+                --             onMouseDown = function()
+                --                 profile.abilities[spellID] = not profile.abilities[spellID]
+                --                 if profile.abilities[spellID] == false then
+                --                     profile.abilities[spellID] = nil;
+                --                 end
+                --             end
+                --         })
+                --     end
 
-                end
+                -- end
 
-            else
-                local spellName, _, spellID = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+            
+            elseif spellType == Enum.SpellBookItemType.Spell then
 
-                local name, rank, icon = GetSpellInfo(spellID)
-                if spellID and name and icon then
+                local spellName, subName = C_SpellBook.GetSpellBookItemName(j, Enum.SpellBookSpellBank.Player)
+                local spellID = select(2,C_SpellBook.GetSpellBookItemType(j, Enum.SpellBookSpellBank.Player))
+                local icon = C_SpellBook.GetSpellBookItemTexture(j, Enum.SpellBookSpellBank.Player)
+                
+                --local _, rank, icon = C_SpellBook.GetSpellInfo(spellID)
+                
+                if spellID and icon then
+
                     self.spellCache[spellID] = {
-                        name = name,
+                        --name = spellName,
                         icon = icon,
+
+                        slotIndex = j,
+                        spellBank = Enum.SpellBookSpellBank.Player,
                     }
 
                     table.insert(abilities, {
                         label = spellName,
+                        icon = icon,
                         spellID = spellID,
                         watching = function()
                             return profile.abilities[spellID] and true or false;
@@ -716,8 +732,12 @@ function TimerBarsMixin:Profile_OnSelectionChanged(profile)
             
         end
     end
-    self.abilities.listview.DataProvider:Flush()
-    self.abilities.listview.DataProvider:InsertTable(abilities)
+
+    table.sort(abilities, function(a, b)
+        return a.label < b.label;
+    end)
+
+    self.abilities.listview.scrollView:SetDataProvider(CreateDataProvider(abilities))
 end
 
 function TimerBarsMixin:OnUpdate()
@@ -735,10 +755,10 @@ function TimerBarsMixin:OnUpdate()
 
             if self.spellCache[spellID] then
 
-                local start, duration, enabled, modRate = GetSpellCooldown(spellID)
+                local spellCooldownInfo = C_SpellBook.GetSpellBookItemCooldown(self.spellCache[spellID].slotIndex, self.spellCache[spellID].spellBank)
 
-                if duration > 1.4 then
-                    local remaining = (start + duration) - GetTime()
+                if spellCooldownInfo.duration > 1.4 then
+                    local remaining = (spellCooldownInfo.startTime + spellCooldownInfo.duration) - GetTime()
 
                     if not self.timerIcons[spellID] then
 
@@ -752,8 +772,10 @@ function TimerBarsMixin:OnUpdate()
                         self.timerIcons[spellID] = f;
                     else
 
-                        local offset = (self:GetWidth() / duration) * remaining;
-                        local pos = self:GetWidth() - offset;
+                        local fauxWidth = self:GetWidth() - self:GetHeight()
+
+                        local offset = (fauxWidth / spellCooldownInfo.duration) * remaining;
+                        local pos = fauxWidth - offset;
                         
                         local xy = self:GetHeight()
                         self.timerIcons[spellID]:Show()
